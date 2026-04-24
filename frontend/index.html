@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HelpDesk Pro</title>
+<style>
+  :root {
+    --brand: #2563eb;
+    --brand-hover: #1d4ed8;
+    --bg: #f3f4f6;
+    --card: #ffffff;
+    --text: #111827;
+    --muted: #6b7280;
+    --border: #e5e7eb;
+    --urgent: #dc2626;
+    --high: #ea580c;
+    --medium: #ca8a04;
+    --low: #16a34a;
+    --open: #2563eb;
+    --in_progress: #7c3aed;
+    --pending: #ca8a04;
+    --resolved: #16a34a;
+    --closed: #6b7280;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: var(--bg); color: var(--text); }
+  header { background: var(--brand); color: white; padding: 1rem 2rem; display: flex; justify-content: space-between; align-items: center; }
+  header h1 { margin: 0; font-size: 1.25rem; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; margin-bottom: 1rem; }
+  .btn { background: var(--brand); color: white; border: none; padding: 0.6rem 1.2rem; border-radius: 6px; cursor: pointer; font-size: 0.9rem; font-weight: 500; }
+  .btn:hover { background: var(--brand-hover); }
+  .btn.secondary { background: transparent; color: var(--brand); border: 1px solid var(--brand); }
+  .btn.danger { background: #dc2626; }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  input, textarea, select { width: 100%; padding: 0.5rem 0.75rem; border: 1px solid var(--border); border-radius: 6px; font-size: 0.9rem; font-family: inherit; }
+  textarea { min-height: 80px; resize: vertical; }
+  label { display: block; font-size: 0.85rem; color: var(--muted); margin-bottom: 0.25rem; margin-top: 0.75rem; font-weight: 500; }
+  .row { display: flex; gap: 1rem; }
+  .row > * { flex: 1; }
+  .stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 1rem; margin-bottom: 2rem; }
+  .stat { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; }
+  .stat .num { font-size: 2rem; font-weight: 700; }
+  .stat .label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 0.75rem; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+  th { font-weight: 600; color: var(--muted); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; }
+  tr { cursor: pointer; }
+  tr:hover { background: #f9fafb; }
+  .badge { display: inline-block; padding: 0.125rem 0.5rem; border-radius: 9999px; font-size: 0.75rem; font-weight: 500; color: white; }
+  .hidden { display: none; }
+  .modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 100; }
+  .modal { background: white; border-radius: 8px; padding: 2rem; max-width: 600px; width: 90%; max-height: 90vh; overflow-y: auto; }
+  .comment { border-left: 3px solid var(--brand); padding: 0.5rem 0 0.5rem 1rem; margin: 0.75rem 0; }
+  .comment-meta { font-size: 0.8rem; color: var(--muted); margin-bottom: 0.25rem; }
+  .error { background: #fee2e2; border: 1px solid #fecaca; color: #991b1b; padding: 0.75rem; border-radius: 6px; margin: 1rem 0; font-size: 0.9rem; }
+  .muted { color: var(--muted); }
+  .flex { display: flex; gap: 0.5rem; align-items: center; }
+  .flex-between { display: flex; justify-content: space-between; align-items: center; }
+  .filters { display: grid; grid-template-columns: repeat(4, 1fr) auto; gap: 0.75rem; margin-bottom: 1rem; }
+</style>
+</head>
+<body>
+<header>
+  <h1>HelpDesk Pro</h1>
+  <div id="user-area"></div>
+</header>
+<div class="container" id="app"></div>
+
+<script>
+const DEFAULT_CFG = {
+  baseUrl: '',
+  authCanonical: 'enterprise-auth',
+  appCanonical: 'helpdesk-pro'
+};
+
+const LS = {
+  cfg: 'hdp:config',
+  token: 'hdp:token',
+  user: 'hdp:user'
+};
+
+function getCfg() {
+  const raw = localStorage.getItem(LS.cfg);
+  return raw ? JSON.parse(raw) : null;
+}
+function saveCfg(cfg) { localStorage.setItem(LS.cfg, JSON.stringify(cfg)); }
+function getToken() { return localStorage.getItem(LS.token); }
+function setToken(t) { localStorage.setItem(LS.token, t); }
+function clearAuth() { localStorage.removeItem(LS.token); localStorage.removeItem(LS.user); }
+function getUser() { const r = localStorage.getItem(LS.user); return r ? JSON.parse(r) : null; }
+function setUser(u) { localStorage.setItem(LS.user, JSON.stringify(u)); }
+
+function normalizeBase(url) {
+  return url.trim().replace(/\/+$/, '');
+}
+
+async function api(path, opts = {}) {
+  const cfg = getCfg();
+  if (!cfg) throw new Error('Not configured');
+  const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
+  const token = getToken();
+  if (token) headers.Authorization = 'Bearer ' + token;
+  const fullUrl = `${cfg.baseUrl}${path}`;
+  const res = await fetch(fullUrl, { ...opts, headers });
+  const text = await res.text();
+  let data; try { data = JSON.parse(text); } catch { data = text; }
+  if (!res.ok) {
+    const msg = (data && (data.message || data.error)) || `HTTP ${res.status}`;
+    throw new Error(msg);
+  }
+  return data;
+}
+
+function appApi(p, opts) { return api(`/api:${getCfg().appCanonical}${p}`, opts); }
+function authApi(p, opts) { return api(`/api:${getCfg().authCanonical}${p}`, opts); }
+
+// =========== Views =============
+
+function renderSetup() {
+  const existing = getCfg() || DEFAULT_CFG;
+  document.getElementById('app').innerHTML = `
+    <div class="card" style="max-width:520px;margin:2rem auto">
+      <h2 style="margin-top:0">Configure your Xano instance</h2>
+      <p class="muted">Enter the base URL of the Xano instance where you pushed this app's backend. Example: <code>https://x12a-b34c-d56e.n7d.xano.io</code></p>
+      <label>Base URL</label>
+      <input id="base-url" value="${existing.baseUrl}" placeholder="https://your-instance.xano.io">
+      <details style="margin-top:1rem">
+        <summary class="muted" style="cursor:pointer;font-size:0.85rem">Advanced: API group canonicals</summary>
+        <label>Auth canonical</label>
+        <input id="auth-canonical" value="${existing.authCanonical}">
+        <label>App canonical</label>
+        <input id="app-canonical" value="${existing.appCanonical}">
+      </details>
+      <div id="setup-error"></div>
+      <button class="btn" style="margin-top:1rem;width:100%" onclick="saveSetup()">Save & Continue</button>
+    </div>
+  `;
+}
+
+window.saveSetup = function() {
+  const baseUrl = normalizeBase(document.getElementById('base-url').value);
+  const authCanonical = document.getElementById('auth-canonical').value.trim();
+  const appCanonical = document.getElementById('app-canonical').value.trim();
+  if (!baseUrl) {
+    document.getElementById('setup-error').innerHTML = '<div class="error">Base URL required.</div>';
+    return;
+  }
+  saveCfg({ baseUrl, authCanonical, appCanonical });
+  route();
+};
+
+function renderLogin() {
+  document.getElementById('app').innerHTML = `
+    <div class="card" style="max-width:420px;margin:2rem auto">
+      <h2 style="margin-top:0">Sign in</h2>
+      <label>Email</label>
+      <input id="login-email" value="alice.johnson@acme.enterprise" placeholder="you@company.com">
+      <label>Password</label>
+      <input id="login-password" type="password" value="DemoPass1" placeholder="Password">
+      <div id="login-error"></div>
+      <button class="btn" style="margin-top:1rem;width:100%" onclick="doLogin()">Sign in</button>
+      <p class="muted" style="margin-top:1rem;font-size:0.85rem;text-align:center">
+        Don't have an account? <a href="#" onclick="event.preventDefault();renderSignup()">Create one</a>
+        <br>
+        <a href="#" onclick="event.preventDefault();clearCfg()">Reconfigure instance</a>
+      </p>
+    </div>
+  `;
+}
+
+window.clearCfg = function() { localStorage.removeItem(LS.cfg); clearAuth(); route(); };
+
+window.doLogin = async function() {
+  const email = document.getElementById('login-email').value;
+  const password = document.getElementById('login-password').value;
+  try {
+    const res = await authApi('/login', { method: 'POST', body: JSON.stringify({ email, password }) });
+    setToken(res.authToken);
+    setUser(res.user || { email });
+    route();
+  } catch (e) {
+    document.getElementById('login-error').innerHTML = `<div class="error">${e.message}</div>`;
+  }
+};
+
+function renderSignup() {
+  document.getElementById('app').innerHTML = `
+    <div class="card" style="max-width:420px;margin:2rem auto">
+      <h2 style="margin-top:0">Create account</h2>
+      <label>Name</label>
+      <input id="su-name">
+      <label>Email</label>
+      <input id="su-email" type="email">
+      <label>Password</label>
+      <input id="su-password" type="password">
+      <div id="signup-error"></div>
+      <button class="btn" style="margin-top:1rem;width:100%" onclick="doSignup()">Sign up</button>
+      <p class="muted" style="margin-top:1rem;font-size:0.85rem;text-align:center">
+        <a href="#" onclick="event.preventDefault();renderLogin()">Back to sign in</a>
+      </p>
+    </div>
+  `;
+}
+
+window.doSignup = async function() {
+  const name = document.getElementById('su-name').value;
+  const email = document.getElementById('su-email').value;
+  const password = document.getElementById('su-password').value;
+  try {
+    const res = await authApi('/signup', { method: 'POST', body: JSON.stringify({ name, email, password }) });
+    setToken(res.authToken);
+    setUser(res.user);
+    route();
+  } catch (e) {
+    document.getElementById('signup-error').innerHTML = `<div class="error">${e.message}</div>`;
+  }
+};
+
+async function renderDashboard() {
+  const user = getUser();
+  document.getElementById('user-area').innerHTML = `
+    <span style="margin-right:1rem">${user ? user.name || user.email : ''}</span>
+    <button class="btn secondary" style="background:rgba(255,255,255,0.15);border-color:rgba(255,255,255,0.3);color:white" onclick="logout()">Sign out</button>
+  `;
+
+  document.getElementById('app').innerHTML = `<div id="stats-wrap"></div><div id="content"><div class="card">Loading…</div></div>`;
+
+  const filters = state.filters;
+  try {
+    const [stats, tickets, categories] = await Promise.all([
+      appApi('/stats/dashboard'),
+      appApi(`/tickets?page=${state.page}&per_page=20${filters.status ? `&status=${filters.status}` : ''}${filters.priority ? `&priority=${filters.priority}` : ''}${filters.category_id ? `&category_id=${filters.category_id}` : ''}`),
+      appApi('/categories')
+    ]);
+
+    document.getElementById('stats-wrap').innerHTML = `
+      <div class="stats">
+        <div class="stat"><div class="num">${stats.open}</div><div class="label">Open</div></div>
+        <div class="stat"><div class="num">${stats.in_progress}</div><div class="label">In Progress</div></div>
+        <div class="stat"><div class="num">${stats.resolved}</div><div class="label">Resolved</div></div>
+        <div class="stat"><div class="num" style="color:var(--urgent)">${stats.urgent_active}</div><div class="label">Urgent</div></div>
+        <div class="stat"><div class="num" style="color:var(--urgent)">${stats.overdue}</div><div class="label">Overdue</div></div>
+      </div>
+    `;
+
+    const rows = tickets.items.map(t => `
+      <tr onclick="showTicket(${t.id})">
+        <td>#${t.id}</td>
+        <td>${escapeHtml(t.subject)}</td>
+        <td><span class="badge" style="background:var(--${t.priority})">${t.priority}</span></td>
+        <td><span class="badge" style="background:var(--${t.status})">${t.status.replace('_',' ')}</span></td>
+        <td>${formatDate(t.created_at)}</td>
+      </tr>
+    `).join('');
+
+    const catOpts = categories.map(c => `<option value="${c.id}" ${filters.category_id == c.id ? 'selected' : ''}>${escapeHtml(c.name)}</option>`).join('');
+
+    document.getElementById('content').innerHTML = `
+      <div class="flex-between" style="margin-bottom:1rem">
+        <h2 style="margin:0">Tickets</h2>
+        <button class="btn" onclick="showNewTicket()">New Ticket</button>
+      </div>
+      <div class="card" style="padding:1rem">
+        <div class="filters">
+          <select id="f-status" onchange="applyFilters()">
+            <option value="">All statuses</option>
+            ${['open','in_progress','pending','resolved','closed'].map(s => `<option value="${s}" ${filters.status===s?'selected':''}>${s.replace('_',' ')}</option>`).join('')}
+          </select>
+          <select id="f-priority" onchange="applyFilters()">
+            <option value="">All priorities</option>
+            ${['urgent','high','medium','low'].map(p => `<option value="${p}" ${filters.priority===p?'selected':''}>${p}</option>`).join('')}
+          </select>
+          <select id="f-category" onchange="applyFilters()">
+            <option value="">All categories</option>
+            ${catOpts}
+          </select>
+          <div></div>
+          <button class="btn secondary" onclick="clearFilters()">Clear</button>
+        </div>
+        <table>
+          <thead><tr><th>ID</th><th>Subject</th><th>Priority</th><th>Status</th><th>Created</th></tr></thead>
+          <tbody>${rows || '<tr><td colspan=5 class=muted style="text-align:center;padding:2rem">No tickets found</td></tr>'}</tbody>
+        </table>
+        ${tickets.pageTotal > 1 ? `<div class="flex-between" style="margin-top:1rem">
+          <span class="muted">Page ${tickets.curPage} of ${tickets.pageTotal} · ${tickets.itemsTotal} total</span>
+          <div class="flex">
+            <button class="btn secondary" ${!tickets.prevPage ? 'disabled' : ''} onclick="changePage(${tickets.curPage-1})">Prev</button>
+            <button class="btn secondary" ${!tickets.nextPage ? 'disabled' : ''} onclick="changePage(${tickets.curPage+1})">Next</button>
+          </div>
+        </div>` : ''}
+      </div>
+    `;
+  } catch (e) {
+    document.getElementById('content').innerHTML = `<div class="error">Error: ${e.message}</div>`;
+  }
+}
+
+window.applyFilters = function() {
+  state.filters.status = document.getElementById('f-status').value;
+  state.filters.priority = document.getElementById('f-priority').value;
+  state.filters.category_id = document.getElementById('f-category').value;
+  state.page = 1;
+  renderDashboard();
+};
+window.clearFilters = function() {
+  state.filters = {};
+  state.page = 1;
+  renderDashboard();
+};
+window.changePage = function(p) { state.page = p; renderDashboard(); };
+
+window.showNewTicket = async function() {
+  const categories = await appApi('/categories');
+  const catOpts = categories.map(c => `<option value="${c.id}">${escapeHtml(c.name)}</option>`).join('');
+  const users = await authApi('/users');
+  const userOpts = users.map(u => `<option value="${u.id}">${escapeHtml(u.name)}</option>`).join('');
+  const modal = document.createElement('div');
+  modal.className = 'modal-backdrop';
+  modal.innerHTML = `
+    <div class="modal">
+      <h2 style="margin-top:0">New Ticket</h2>
+      <label>Subject</label>
+      <input id="new-subject">
+      <label>Description</label>
+      <textarea id="new-description"></textarea>
+      <div class="row">
+        <div>
+          <label>Priority</label>
+          <select id="new-priority"><option value="low">Low</option><option value="medium" selected>Medium</option><option value="high">High</option><option value="urgent">Urgent</option></select>
+        </div>
+        <div>
+          <label>Category</label>
+          <select id="new-category"><option value="">—</option>${catOpts}</select>
+        </div>
+      </div>
+      <label>Assign to</label>
+      <select id="new-assignee"><option value="">— Unassigned —</option>${userOpts}</select>
+      <div id="new-error"></div>
+      <div class="flex" style="margin-top:1rem;justify-content:flex-end">
+        <button class="btn secondary" onclick="this.closest('.modal-backdrop').remove()">Cancel</button>
+        <button class="btn" onclick="submitNewTicket(this)">Create</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+};
+
+window.submitNewTicket = async function(btn) {
+  const modal = btn.closest('.modal-backdrop');
+  const body = {
+    subject: modal.querySelector('#new-subject').value,
+    description: modal.querySelector('#new-description').value,
+    priority: modal.querySelector('#new-priority').value
+  };
+  const cat = modal.querySelector('#new-category').value;
+  if (cat) body.category_id = parseInt(cat);
+  const asg = modal.querySelector('#new-assignee').value;
+  if (asg) body.assignee_id = parseInt(asg);
+  try {
+    await appApi('/tickets', { method: 'POST', body: JSON.stringify(body) });
+    modal.remove();
+    renderDashboard();
+  } catch (e) {
+    modal.querySelector('#new-error').innerHTML = `<div class="error">${e.message}</div>`;
+  }
+};
+
+window.showTicket = async function(id) {
+  const modal = document.createElement('div');
+  modal.className = 'modal-backdrop';
+  modal.innerHTML = `<div class="modal">Loading…</div>`;
+  document.body.appendChild(modal);
+  try {
+    const [t, comments] = await Promise.all([
+      appApi(`/tickets/${id}`),
+      appApi(`/tickets/${id}/comments`)
+    ]);
+    modal.querySelector('.modal').innerHTML = `
+      <div class="flex-between">
+        <h2 style="margin:0">#${t.id} · ${escapeHtml(t.subject)}</h2>
+        <button class="btn secondary" onclick="this.closest('.modal-backdrop').remove()">Close</button>
+      </div>
+      <div class="flex" style="gap:0.5rem;margin:0.5rem 0 1rem">
+        <span class="badge" style="background:var(--${t.priority})">${t.priority}</span>
+        <span class="badge" style="background:var(--${t.status})">${t.status.replace('_',' ')}</span>
+        ${t.category && t.category.name ? `<span class="muted" style="font-size:0.85rem">· ${escapeHtml(t.category.name)}</span>` : ''}
+      </div>
+      <p>${escapeHtml(t.description || '')}</p>
+      <div class="muted" style="font-size:0.85rem;margin:1rem 0">
+        Requested by <strong>${t.requester ? escapeHtml(t.requester.name) : 'Unknown'}</strong>
+        ${t.assignee && t.assignee.id ? `· Assigned to <strong>${escapeHtml(t.assignee.name)}</strong>` : ''}
+        · ${formatDate(t.created_at)}
+      </div>
+      <div class="row" style="margin:1rem 0">
+        <div>
+          <label>Status</label>
+          <select id="t-status" onchange="updateTicketField(${id}, 'status', this.value)">
+            ${['open','in_progress','pending','resolved','closed'].map(s => `<option value="${s}" ${t.status===s?'selected':''}>${s.replace('_',' ')}</option>`).join('')}
+          </select>
+        </div>
+        <div>
+          <label>Priority</label>
+          <select id="t-priority" onchange="updateTicketField(${id}, 'priority', this.value)">
+            ${['urgent','high','medium','low'].map(p => `<option value="${p}" ${t.priority===p?'selected':''}>${p}</option>`).join('')}
+          </select>
+        </div>
+      </div>
+      <h3>Comments</h3>
+      <div id="comments-list">
+        ${comments.map(c => `
+          <div class="comment">
+            <div class="comment-meta"><strong>${c.author ? escapeHtml(c.author.name) : 'Unknown'}</strong> · ${formatDate(c.created_at)}</div>
+            <div>${escapeHtml(c.body)}</div>
+          </div>
+        `).join('') || '<p class="muted">No comments yet.</p>'}
+      </div>
+      <label>Add a comment</label>
+      <textarea id="new-comment"></textarea>
+      <div class="flex" style="justify-content:flex-end;margin-top:0.5rem">
+        <button class="btn" onclick="addComment(${id}, this)">Post</button>
+      </div>
+    `;
+  } catch (e) {
+    modal.querySelector('.modal').innerHTML = `<div class="error">${e.message}</div>`;
+  }
+};
+
+window.updateTicketField = async function(id, field, value) {
+  try {
+    await appApi(`/tickets/${id}`, { method: 'PATCH', body: JSON.stringify({ [field]: value }) });
+  } catch (e) { alert(e.message); }
+};
+
+window.addComment = async function(id, btn) {
+  const modal = btn.closest('.modal-backdrop');
+  const body = modal.querySelector('#new-comment').value;
+  if (!body.trim()) return;
+  try {
+    await appApi(`/tickets/${id}/comments`, { method: 'POST', body: JSON.stringify({ body }) });
+    modal.remove();
+    showTicket(id);
+  } catch (e) { alert(e.message); }
+};
+
+window.logout = function() { clearAuth(); route(); };
+
+function escapeHtml(s) {
+  if (s === null || s === undefined) return '';
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function formatDate(ms) {
+  if (!ms) return '';
+  return new Date(ms).toLocaleString();
+}
+
+// ============ Router =============
+const state = { page: 1, filters: {} };
+
+function route() {
+  document.getElementById('user-area').innerHTML = '';
+  if (!getCfg()) return renderSetup();
+  if (!getToken()) return renderLogin();
+  renderDashboard();
+}
+
+route();
+</script>
+</body>
+</html>
