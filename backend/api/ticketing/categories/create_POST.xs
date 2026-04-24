@@ -1,6 +1,6 @@
 // Create a new ticket category
 query "categories" verb=POST {
-  api_group = "HelpDesk"
+  api_group = "Ticketing"
   auth = "user"
 
   input {
@@ -9,7 +9,7 @@ query "categories" verb=POST {
   }
 
   stack {
-    db.add "hd_category" {
+    db.add "ticket_category" {
       data = {
         name       : $input.name,
         description: $input.description

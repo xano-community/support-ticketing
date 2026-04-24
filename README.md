@@ -1,6 +1,6 @@
-# HelpDesk Pro
+# Support Ticketing
 
-An IT / customer-support ticketing system built on Xano. Backend is XanoScript you push to your own Xano instance; frontend is a single-file HTML app that asks for your instance's base URL the first time it loads.
+An IT / customer-support ticketing app built on Xano. Backend is XanoScript you push to your own Xano instance; frontend is a single-file HTML app that asks for your instance's base URL the first time it loads.
 
 Tickets have a subject, description, priority (`low` / `medium` / `high` / `urgent`), status (`open` / `in_progress` / `pending` / `resolved` / `closed`), a category, a requester, an optional assignee, and an auto-computed SLA due-date. Agents leave comments (optionally internal-only), and a dashboard endpoint surfaces counts by status plus overdue tickets.
 
@@ -9,10 +9,10 @@ Tickets have a subject, description, priority (`low` / `medium` / `high` / `urge
 ```
 backend/            # XanoScript — push to your Xano workspace
   workspace/
-  table/            # user, hd_ticket, hd_comment, hd_category
+  table/            # user, ticket, ticket_comment, ticket_category
   api/
     enterprise_auth/  # signup, login, me, users
-    helpdesk/         # tickets, categories, stats, seed
+    ticketing/        # tickets, categories, stats, seed
 frontend/
   index.html        # single-file static app
 ```
@@ -31,14 +31,14 @@ cd backend
 xano workspace:push
 ```
 
-This creates 4 tables (`user`, `hd_ticket`, `hd_comment`, `hd_category`), an `EnterpriseAuth` API group, and a `HelpDesk` API group in your workspace.
+This creates 4 tables (`user`, `ticket`, `ticket_comment`, `ticket_category`), an `EnterpriseAuth` API group, and a `Ticketing` API group in your workspace.
 
 ### 2. Seed demo data
 
 A seed endpoint populates 8 users, 6 categories, 20 tickets in varied states, and comments. Idempotent — safe to re-run.
 
 ```bash
-curl -X POST https://YOUR-INSTANCE.n7d.xano.io/api:helpdesk-pro/seed \
+curl -X POST https://YOUR-INSTANCE.n7d.xano.io/api:support-ticketing/seed \
   -d '{}' -H 'Content-Type: application/json'
 ```
 
@@ -66,25 +66,25 @@ POST   /api:enterprise-auth/login          { email, password }
 GET    /api:enterprise-auth/me
 GET    /api:enterprise-auth/users
 
-POST   /api:helpdesk-pro/seed
-GET    /api:helpdesk-pro/tickets           ?status&priority&category_id&assignee_id&page&per_page
-POST   /api:helpdesk-pro/tickets
-GET    /api:helpdesk-pro/tickets/{id}
-PATCH  /api:helpdesk-pro/tickets/{id}
-DELETE /api:helpdesk-pro/tickets/{id}
-GET    /api:helpdesk-pro/tickets/{id}/comments
-POST   /api:helpdesk-pro/tickets/{id}/comments
-GET    /api:helpdesk-pro/categories
-POST   /api:helpdesk-pro/categories
-GET    /api:helpdesk-pro/stats/dashboard
+POST   /api:support-ticketing/seed
+GET    /api:support-ticketing/tickets           ?status&priority&category_id&assignee_id&page&per_page
+POST   /api:support-ticketing/tickets
+GET    /api:support-ticketing/tickets/{id}
+PATCH  /api:support-ticketing/tickets/{id}
+DELETE /api:support-ticketing/tickets/{id}
+GET    /api:support-ticketing/tickets/{id}/comments
+POST   /api:support-ticketing/tickets/{id}/comments
+GET    /api:support-ticketing/categories
+POST   /api:support-ticketing/categories
+GET    /api:support-ticketing/stats/dashboard
 ```
 
 ## Schema
 
 - **`user`** — id, name, email (unique), password, created_at — shared auth table with `auth = true`
-- **`hd_ticket`** — id, subject, description, status, priority, category_id → hd_category, requester_id → user, assignee_id → user, sla_due_at, resolved_at, created_at, updated_at
-- **`hd_category`** — id, name (unique), description
-- **`hd_comment`** — id, ticket_id → hd_ticket, author_id → user, body, is_internal
+- **`ticket`** — id, subject, description, status, priority, category_id → ticket_category, requester_id → user, assignee_id → user, sla_due_at, resolved_at, created_at, updated_at
+- **`ticket_category`** — id, name (unique), description
+- **`ticket_comment`** — id, ticket_id → ticket, author_id → user, body, is_internal
 
 ## Frontend features
 

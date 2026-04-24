@@ -1,6 +1,6 @@
 // Create a new support ticket
 query "tickets" verb=POST {
-  api_group = "HelpDesk"
+  api_group = "Ticketing"
   auth = "user"
 
   input {
@@ -12,7 +12,7 @@ query "tickets" verb=POST {
   }
 
   stack {
-    db.add "hd_ticket" {
+    db.add "ticket" {
       data = {
         subject      : $input.subject,
         description  : $input.description,

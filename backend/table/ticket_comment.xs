@@ -1,11 +1,11 @@
-table "hd_comment" {
+table "ticket_comment" {
   auth = false
 
   schema {
     int id
     timestamp created_at?=now
     int ticket_id {
-      table = "hd_ticket"
+      table = "ticket"
     }
     int author_id {
       table = "user"

@@ -1,4 +1,4 @@
-table "hd_category" {
+table "ticket_category" {
   auth = false
 
   schema {

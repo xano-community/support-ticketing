@@ -1,11 +1,11 @@
 // Update a ticket
 query "tickets/{ticket_id}" verb=PATCH {
-  api_group = "HelpDesk"
+  api_group = "Ticketing"
   auth = "user"
 
   input {
     int ticket_id {
-      table = "hd_ticket"
+      table = "ticket"
     }
     text subject? filters=trim
     text description? filters=trim
@@ -70,7 +70,7 @@ query "tickets/{ticket_id}" verb=PATCH {
       }
     }
 
-    db.patch "hd_ticket" {
+    db.patch "ticket" {
       field_name = "id"
       field_value = $input.ticket_id
       data = $updates

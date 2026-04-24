@@ -1,6 +1,6 @@
 // List tickets with filtering and pagination
 query "tickets" verb=GET {
-  api_group = "HelpDesk"
+  api_group = "Ticketing"
   auth = "user"
 
   input {
@@ -13,8 +13,8 @@ query "tickets" verb=GET {
   }
 
   stack {
-    db.query "hd_ticket" {
-      where = $db.hd_ticket.status ==? $input.status && $db.hd_ticket.priority ==? $input.priority && $db.hd_ticket.category_id ==? $input.category_id && $db.hd_ticket.assignee_id ==? $input.assignee_id
+    db.query "ticket" {
+      where = $db.ticket.status ==? $input.status && $db.ticket.priority ==? $input.priority && $db.ticket.category_id ==? $input.category_id && $db.ticket.assignee_id ==? $input.assignee_id
       sort = {created_at: "desc"}
       return = {
         type: "list",

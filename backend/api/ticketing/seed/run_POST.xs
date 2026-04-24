@@ -1,17 +1,17 @@
-// Seed HelpDesk with realistic demo data. Idempotent: skips records that already exist.
+// Seed Ticketing with realistic demo data. Idempotent: skips records that already exist.
 query "seed" verb=POST {
-  api_group = "HelpDesk"
+  api_group = "Ticketing"
 
   input {}
 
   stack {
-    db.query "hd_ticket" {
+    db.query "ticket" {
       return = {type: "count"}
     } as $existing_tickets
 
     precondition ($existing_tickets == 0) {
       error_type = "inputerror"
-      error = "HelpDesk data already seeded. Truncate hd_ticket to reseed."
+      error = "Ticketing data already seeded. Truncate ticket to reseed."
     }
 
     var $seed_users {
@@ -61,14 +61,14 @@ query "seed" verb=POST {
 
     foreach ($category_seeds) {
       each as $cat_seed {
-        db.get "hd_category" {
+        db.get "ticket_category" {
           field_name = "name"
           field_value = $cat_seed.name
         } as $existing_cat
 
         conditional {
           if ($existing_cat == null) {
-            db.add "hd_category" {
+            db.add "ticket_category" {
               data = {
                 name       : $cat_seed.name,
                 description: $cat_seed.description
@@ -118,12 +118,12 @@ query "seed" verb=POST {
           field_value = $t.asg_email
         } as $assignee
 
-        db.get "hd_category" {
+        db.get "ticket_category" {
           field_name = "name"
           field_value = $t.cat_name
         } as $category
 
-        db.add "hd_ticket" {
+        db.add "ticket" {
           data = {
             subject      : $t.subject,
             description  : ("Reported by " ~ $requester.name ~ ". Please investigate and resolve per SLA policy."),
@@ -138,7 +138,7 @@ query "seed" verb=POST {
 
         conditional {
           if ($t.status == "resolved" || $t.status == "closed") {
-            db.edit "hd_ticket" {
+            db.edit "ticket" {
               field_name = "id"
               field_value = $ticket.id
               data = {resolved_at: now}
@@ -146,7 +146,7 @@ query "seed" verb=POST {
           }
         }
 
-        db.add "hd_comment" {
+        db.add "ticket_comment" {
           data = {
             ticket_id  : $ticket.id,
             author_id  : $assignee.id,
@@ -157,7 +157,7 @@ query "seed" verb=POST {
 
         conditional {
           if ($t.status != "open") {
-            db.add "hd_comment" {
+            db.add "ticket_comment" {
               data = {
                 ticket_id  : $ticket.id,
                 author_id  : $requester.id,

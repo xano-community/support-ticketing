@@ -1,11 +1,11 @@
 // List ticket categories
 query "categories" verb=GET {
-  api_group = "HelpDesk"
+  api_group = "Ticketing"
 
   input {}
 
   stack {
-    db.query "hd_category" {
+    db.query "ticket_category" {
       sort = {name: "asc"}
     } as $categories
   }

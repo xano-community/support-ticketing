@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HelpDesk Pro</title>
+<title>Support Ticketing</title>
 <style>
   :root {
     --brand: #2563eb;
@@ -63,7 +63,7 @@
 </head>
 <body>
 <header>
-  <h1>HelpDesk Pro</h1>
+  <h1>Support Ticketing</h1>
   <div id="user-area"></div>
 </header>
 <div class="container" id="app"></div>
@@ -72,13 +72,13 @@
 const DEFAULT_CFG = {
   baseUrl: '',
   authCanonical: 'enterprise-auth',
-  appCanonical: 'helpdesk-pro'
+  appCanonical: 'support-ticketing'
 };
 
 const LS = {
-  cfg: 'hdp:config',
-  token: 'hdp:token',
-  user: 'hdp:user'
+  cfg: 'ticketing:config',
+  token: 'ticketing:token',
+  user: 'ticketing:user'
 };
 
 function getCfg() {

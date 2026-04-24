@@ -1,6 +1,6 @@
 // Get a ticket by ID with category, requester, and assignee info
 query "tickets/{ticket_id}" verb=GET {
-  api_group = "HelpDesk"
+  api_group = "Ticketing"
   auth = "user"
 
   input {
@@ -8,7 +8,7 @@ query "tickets/{ticket_id}" verb=GET {
   }
 
   stack {
-    db.get "hd_ticket" {
+    db.get "ticket" {
       field_name = "id"
       field_value = $input.ticket_id
     } as $ticket
@@ -18,7 +18,7 @@ query "tickets/{ticket_id}" verb=GET {
       error = "Ticket not found"
     }
 
-    db.get "hd_category" {
+    db.get "ticket_category" {
       field_name = "id"
       field_value = $ticket.category_id
     } as $category

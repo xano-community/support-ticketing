@@ -1,20 +1,20 @@
 // Delete a ticket (and its comments)
 query "tickets/{ticket_id}" verb=DELETE {
-  api_group = "HelpDesk"
+  api_group = "Ticketing"
   auth = "user"
 
   input {
     int ticket_id {
-      table = "hd_ticket"
+      table = "ticket"
     }
   }
 
   stack {
-    db.bulk.delete "hd_comment" {
-      where = $db.hd_comment.ticket_id == $input.ticket_id
+    db.bulk.delete "ticket_comment" {
+      where = $db.ticket_comment.ticket_id == $input.ticket_id
     } as $deleted_comments
 
-    db.del "hd_ticket" {
+    db.del "ticket" {
       field_name = "id"
       field_value = $input.ticket_id
     }

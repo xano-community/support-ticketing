@@ -1,4 +1,4 @@
-table "hd_ticket" {
+table "ticket" {
   auth = false
 
   schema {
@@ -14,7 +14,7 @@ table "hd_ticket" {
       values = ["low", "medium", "high", "urgent"]
     }
     int category_id? {
-      table = "hd_category"
+      table = "ticket_category"
     }
     int requester_id {
       table = "user"

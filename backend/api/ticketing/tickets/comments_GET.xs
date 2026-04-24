@@ -1,6 +1,6 @@
 // List comments on a ticket
 query "tickets/{ticket_id}/comments" verb=GET {
-  api_group = "HelpDesk"
+  api_group = "Ticketing"
   auth = "user"
 
   input {
@@ -8,8 +8,8 @@ query "tickets/{ticket_id}/comments" verb=GET {
   }
 
   stack {
-    db.query "hd_comment" {
-      where = $db.hd_comment.ticket_id == $input.ticket_id
+    db.query "ticket_comment" {
+      where = $db.ticket_comment.ticket_id == $input.ticket_id
       sort = {created_at: "asc"}
     } as $comments
 
