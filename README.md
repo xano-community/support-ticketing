@@ -35,7 +35,7 @@ This creates 4 tables (`user`, `ticket`, `ticket_comment`, `ticket_category`), a
 
 ### 2. Seed demo data
 
-A seed endpoint populates 8 users, 6 categories, 20 tickets in varied states, and comments. Idempotent — safe to re-run.
+A seed endpoint populates 8 users, 6 categories, 20 tickets in varied states, and comments. **One-shot** — if any ticket rows already exist the endpoint will return an error (`Ticketing data already seeded`). To reseed from scratch, truncate the `ticket` table in your workspace and call the endpoint again. (Users and categories are skipped if they already exist, so only ticket rows need to be cleared.)
 
 ```bash
 curl -X POST https://YOUR-INSTANCE.n7d.xano.io/api:support-ticketing/seed \
