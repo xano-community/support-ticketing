@@ -4,6 +4,10 @@ An IT / customer-support ticketing app built on Xano. Backend is XanoScript you 
 
 Tickets have a subject, description, priority (`low` / `medium` / `high` / `urgent`), status (`open` / `in_progress` / `pending` / `resolved` / `closed`), a category, a requester, an optional assignee, and an auto-computed SLA due-date. Agents leave comments (optionally internal-only), and a dashboard endpoint surfaces counts by status plus overdue tickets.
 
+## Why this exists
+
+A support queue run out of a shared inbox has no memory: two people reply to the same request, priority is whatever's loudest, and "is this overdue?" is a guess. This template gives every request the structure that inbox lacks — a priority, a status lifecycle (`open` → `in_progress` → `pending` → `resolved` → `closed`), a category, a requester and an assignee, and an auto-computed SLA due-date so overdue tickets surface instead of rot. Agents leave comments (internal-only when needed), and a dashboard endpoint rolls up counts by status and what's past due. It's the difference between answering tickets and running a support operation.
+
 ## Repo layout
 
 ```
